@@ -461,7 +461,7 @@ def main():
     st.set_page_config(layout="wide", page_title="EB-1 Green Card Eligibility Screener")
 
     # Header and Layout
-    st.title("🇺🇸 EB-1 Green Card Eligibility Screener")
+    st.title("US EB-1 Green Card Eligibility Screener")
     st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).") # Reduced space by using st.caption() instead of st.markdown()
     st.divider() # Replaced st.markdown("---")
     
@@ -596,3 +596,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
