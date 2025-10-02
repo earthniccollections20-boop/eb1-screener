@@ -427,15 +427,14 @@ def display_results(result):
     
     # Use HTML/Markdown for rich formatting based on result properties
     status_html = f"""
-    <div style="background-color: {result['color']}; padding: 15px; border-radius: 5px; color: white; text-align: center;">
-        <h2 style="margin: 0; font-size: 24px;">{result['status']}</h2>
-        <p style="margin: 0; font-size: 16px;">Recommended Category: {result['category']}</p>
+    <div style="background-color: {result['color']}; padding: 10px; border-radius: 5px; color: white; text-align: center;"> 
+        <h3 style="margin: 0; font-size: 20px;">{result['status']}</h3>  
+        <p style="margin: 0; font-size: 14px;">Recommended Category: {result['category']}</p>
     </div>
-    <br>
     """
     st.markdown(status_html, unsafe_allow_html=True)
     
-    st.header(result['title'])
+    st.subheader(result['title']) # Reduced from st.header()
     
     col1, col2 = st.columns(2)
     with col1:
@@ -444,17 +443,17 @@ def display_results(result):
     with col2:
         st.metric("Strength", result['strength'])
         
-    st.subheader("Assessment Details")
+    st.markdown("**Assessment Details**") # Reduced from st.subheader()
     st.write(result['details'])
     
-    st.subheader("Processing Guidance")
+    st.markdown("**Processing Guidance**") # Reduced from st.subheader()
     st.info(result['processing'])
     
-    st.subheader("Recommended Next Steps")
+    st.markdown("**Recommended Next Steps**") # Reduced from st.subheader()
     for i, step in enumerate(result['next_steps'], 1):
         st.markdown(f"**{i}.** {step}")
         
-    st.markdown("---")
+    st.divider() # Replaced st.markdown("---")
     st.warning("**⚠️ IMPORTANT DISCLAIMER:** This is a preliminary screening tool only and does NOT constitute legal advice. EB-1 eligibility depends on the quality and strength of documentation, not just meeting criteria. Consult with a qualified immigration attorney for a comprehensive case evaluation and petition strategy.")
 
 
@@ -463,30 +462,30 @@ def main():
 
     # Header and Layout
     st.title("🇺🇸 EB-1 Green Card Eligibility Screener")
-    st.markdown("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).")
-    st.markdown("---")
+    st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).") # Reduced space by using st.caption() instead of st.markdown()
+    st.divider() # Replaced st.markdown("---")
     
     # Two-column layout for input and results
     input_col, result_col = st.columns([1, 1])
 
     with input_col:
-        st.header("1. Select Your Qualifications")
+        st.subheader("1. Select Your Qualifications") # Reduced from st.header()
         
         # --- Collect Criteria Data ---
         criteria_data = defaultdict(lambda: False)
 
         # --- EB-1A Section ---
         with st.expander("🌟 EB-1A: Extraordinary Ability (Need 3 of 10 Criteria)", expanded=True):
-            st.markdown("---")
+            st.divider() # Replaced st.markdown("---")
             st.markdown(
-                '<div style="background-color: #f7f3e8; padding: 10px; border-radius: 5px; border: 1px solid #e0c897;">'
+                '<div style="background-color: #f7f3e8; padding: 5px; border-radius: 5px; border: 1px solid #e0c897;">' # Reduced padding
                 '**⭐ Major Award Override**'
                 '</div>',
                 unsafe_allow_html=True
             )
             criteria_data['major_award'] = st.checkbox("Major internationally recognized award (Nobel, Oscar, Pulitzer, Olympic Medal)", key='major_award')
 
-            st.markdown("---")
+            st.divider() # Replaced st.markdown("---")
             st.markdown("**10 EB-1A Criteria (Need a minimum of 3):**")
             
             # Using columns for the 10 criteria
@@ -504,8 +503,7 @@ def main():
                 criteria_data['performances'] = st.checkbox("Work displayed at exhibitions/showcases", key='performances')
                 criteria_data['high_salary'] = st.checkbox("High salary or significantly high remuneration", key='high_salary')
                 criteria_data['commercial_success'] = st.checkbox("Commercial success in performing arts", key='commercial_success')
-                st.write("") # Placeholder for 10th criterion (often covered by Major Award or other criteria)
-
+                # Removed st.write("")
 
         # --- EB-1B Section ---
         with st.expander("🔬 EB-1B: Outstanding Researcher/Professor (Need 2 of 6 + Requirements)"):
@@ -534,8 +532,8 @@ def main():
                     key='tenure'
                 )
 
-            st.markdown("---")
-            st.markdown("**EB-1B Criteria (Need a minimum of 2 of the following 6. Note: Some overlap with EB-1A is possible):**")
+            st.divider() # Replaced st.markdown("---")
+            st.markdown("**EB-1B Criteria (Need a minimum of 2 of the following 6):**")
             
             criteria_data['published_articles'] = st.checkbox("Published articles in international academic journals (peer-reviewed)", key='published_articles')
             criteria_data['judging_research'] = st.checkbox("Judged research of others (peer review, grant panels)", key='judging_research')
@@ -579,8 +577,8 @@ def main():
             st.session_state['run_screener'] = True
         
     with result_col:
-        st.header("2. Assessment Results")
-        st.markdown("---")
+        st.subheader("2. Assessment Results") # Reduced from st.header()
+        st.divider() # Replaced st.markdown("---")
         
         # Initial message
         if 'run_screener' not in st.session_state:
