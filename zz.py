@@ -1,7 +1,7 @@
 import streamlit as st
 from collections import defaultdict
 
-# --- Core Eligibility Logic Functions (REUSED AS-IS) ---
+# --- Core Eligibility Logic Functions ---
 
 def check_eb1_eligibility(criteria_data):
     """
@@ -69,7 +69,7 @@ def check_eb1_eligibility(criteria_data):
         criteria_data['transfer'] == 'yes'
     )
     
-    # === ALL POSSIBLE OUTCOMES (15 Scenarios) ===
+    # === ALL POSSIBLE OUTCOMES (15 Scenarios - Prioritized by Strength) ===
     
     # OUTCOME 1: Exceptional EB-1A (7-10 criteria)
     if eb1a_criteria_met >= 7:
@@ -434,7 +434,7 @@ def display_results(result):
     """
     st.markdown(status_html, unsafe_allow_html=True)
     
-    st.subheader(result['title']) # Reduced from st.header()
+    st.subheader(result['title'])
     
     col1, col2 = st.columns(2)
     with col1:
@@ -443,17 +443,17 @@ def display_results(result):
     with col2:
         st.metric("Strength", result['strength'])
         
-    st.markdown("**Assessment Details**") # Reduced from st.subheader()
+    st.markdown("**Assessment Details**")
     st.write(result['details'])
     
-    st.markdown("**Processing Guidance**") # Reduced from st.subheader()
+    st.markdown("**Processing Guidance**")
     st.info(result['processing'])
     
-    st.markdown("**Recommended Next Steps**") # Reduced from st.subheader()
+    st.markdown("**Recommended Next Steps**")
     for i, step in enumerate(result['next_steps'], 1):
         st.markdown(f"**{i}.** {step}")
         
-    st.divider() # Replaced st.markdown("---")
+    st.divider()
     st.warning("**⚠️ IMPORTANT DISCLAIMER:** This is a preliminary screening tool only and does NOT constitute legal advice. EB-1 eligibility depends on the quality and strength of documentation, not just meeting criteria. Consult with a qualified immigration attorney for a comprehensive case evaluation and petition strategy.")
 
 
@@ -462,30 +462,31 @@ def main():
 
     # Header and Layout
     st.title("US EB-1 Green Card Eligibility Screener")
-    st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).") # Reduced space by using st.caption() instead of st.markdown()
-    st.divider() # Replaced st.markdown("---")
+    st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).")
+    st.divider()
     
     # Two-column layout for input and results
     input_col, result_col = st.columns([1, 1])
 
     with input_col:
-        st.subheader("1. Select Your Qualifications") # Reduced from st.header()
+        st.subheader("1. Select Your Qualifications")
         
         # --- Collect Criteria Data ---
         criteria_data = defaultdict(lambda: False)
 
         # --- EB-1A Section ---
-        with st.expander("🌟 EB-1A: Extraordinary Ability (Need 3 of 10 Criteria)", expanded=True):
-            st.divider() # Replaced st.markdown("---")
+        # NOTE: expanded=False is set to keep this section closed on load.
+        with st.expander("🌟 EB-1A: Extraordinary Ability (Need 3 of 10 Criteria)", expanded=False):
+            st.divider()
             st.markdown(
-                '<div style="background-color: #f7f3e8; padding: 5px; border-radius: 5px; border: 1px solid #e0c897;">' # Reduced padding
+                '<div style="background-color: #f7f3e8; padding: 5px; border-radius: 5px; border: 1px solid #e0c897;">'
                 '**⭐ Major Award Override**'
                 '</div>',
                 unsafe_allow_html=True
             )
             criteria_data['major_award'] = st.checkbox("Major internationally recognized award (Nobel, Oscar, Pulitzer, Olympic Medal)", key='major_award')
 
-            st.divider() # Replaced st.markdown("---")
+            st.divider()
             st.markdown("**10 EB-1A Criteria (Need a minimum of 3):**")
             
             # Using columns for the 10 criteria
@@ -503,10 +504,10 @@ def main():
                 criteria_data['performances'] = st.checkbox("Work displayed at exhibitions/showcases", key='performances')
                 criteria_data['high_salary'] = st.checkbox("High salary or significantly high remuneration", key='high_salary')
                 criteria_data['commercial_success'] = st.checkbox("Commercial success in performing arts", key='commercial_success')
-                # Removed st.write("")
 
         # --- EB-1B Section ---
-        with st.expander("🔬 EB-1B: Outstanding Researcher/Professor (Need 2 of 6 + Requirements)"):
+        # NOTE: expanded=False is set to keep this section closed on load.
+        with st.expander("🔬 EB-1B: Outstanding Researcher/Professor (Need 2 of 6 + Requirements)", expanded=False):
             st.markdown("**Core Requirements:**")
             
             col_b1, col_b2, col_b3 = st.columns(3)
@@ -532,19 +533,20 @@ def main():
                     key='tenure'
                 )
 
-            st.divider() # Replaced st.markdown("---")
+            st.divider()
             st.markdown("**EB-1B Criteria (Need a minimum of 2 of the following 6):**")
             
             criteria_data['published_articles'] = st.checkbox("Published articles in international academic journals (peer-reviewed)", key='published_articles')
             criteria_data['judging_research'] = st.checkbox("Judged research of others (peer review, grant panels)", key='judging_research')
             criteria_data['original_contributions_research'] = st.checkbox("Original research contributions of major significance to field", key='original_contributions_research')
-            # Criteria shared with EB-1A are automatically collected above: lesser_awards, membership. We list them explicitly as well.
+            # Criteria shared with EB-1A are listed explicitly as well, using separate keys for the checkboxes but consolidated in logic.
             criteria_data['lesser_awards_b'] = st.checkbox("Lesser nationally/internationally recognized awards (EB-1B specific)", key='lesser_awards_b')
             criteria_data['membership_b'] = st.checkbox("Membership requiring outstanding achievements (EB-1B specific)", key='membership_b')
 
 
         # --- EB-1C Section ---
-        with st.expander("🏢 EB-1C: Multinational Manager/Executive"):
+        # NOTE: expanded=False is set to keep this section closed on load.
+        with st.expander("🏢 EB-1C: Multinational Manager/Executive", expanded=False):
             st.markdown("**All three of the following requirements must be met:**")
             
             col_c1, col_c2, col_c3 = st.columns(3)
@@ -577,8 +579,8 @@ def main():
             st.session_state['run_screener'] = True
         
     with result_col:
-        st.subheader("2. Assessment Results") # Reduced from st.header()
-        st.divider() # Replaced st.markdown("---")
+        st.subheader("2. Assessment Results")
+        st.divider()
         
         # Initial message
         if 'run_screener' not in st.session_state:
@@ -586,8 +588,7 @@ def main():
         
         # Run the screener and display results
         if st.session_state.get('run_screener', False):
-            # Ensure the two EB-1B criteria that overlap with EB-1A are correctly boolean
-            # The 'b' suffixes are for the UI only to avoid key conflicts, we use the main keys for logic
+            # Consolidate overlapping EB-1A and EB-1B criteria from UI checkboxes
             criteria_data['lesser_awards'] = criteria_data.get('lesser_awards', False) or criteria_data.get('lesser_awards_b', False)
             criteria_data['membership'] = criteria_data.get('membership', False) or criteria_data.get('membership_b', False)
 
@@ -596,4 +597,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
