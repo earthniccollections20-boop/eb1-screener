@@ -635,7 +635,7 @@ def main():
             criteria_data['major_award'] = st.checkbox("Major internationally recognized award (Nobel, Oscar, Pulitzer, Olympic Medal)", key='major_award')
 
             st.divider()
-            st.markdown("**10 EB-1A Criteria (Need a minimum of 3):**")
+            st.markdown("**EB-1A Criteria (Need a minimum of 3):**")
             
             c1, c2 = st.columns(2)
         
@@ -763,3 +763,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
