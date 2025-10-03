@@ -36,6 +36,22 @@ CRITERIA_QUESTIONS = {
     'managerial_role': "US role is also managerial/executive",
 }
 
+# Dictionary to structure the questions for the RTF report headings
+CRITERIA_GROUPS = {
+    "EB-1A: Extraordinary Ability (10 Criteria)": [
+        'major_award', 'lesser_awards', 'membership', 'publications', 'judging',
+        'original_contributions', 'authorship', 'performances', 'high_salary',
+        'commercial_success'
+    ],
+    "EB-1B: Outstanding Researcher/Professor (Requirements & Criteria)": [
+        'experience', 'offer', 'tenure', 'published_articles', 'judging_research',
+        'original_contributions_research', 'lesser_awards_b', 'membership_b'
+    ],
+    "EB-1C: Multinational Manager/Executive (3 Requirements)": [
+        'one_year_exp', 'transfer', 'managerial_role'
+    ]
+}
+
 
 # --- CORE ELIGIBILITY LOGIC (FULL CODE) ---
 
@@ -504,18 +520,19 @@ def create_rtf_report(criteria_data, result, question_map):
     """Generates a report in Rich Text Format (.rtf) for Word compatibility."""
     
     # RTF header and font definitions
+    # \sa0 removes spacing after paragraph; \sl240\slmult1 sets single line spacing (0.8 of default 1.2)
     rtf = (
         r'{\rtf1\ansi\deff0'
         r'{\fonttbl{\f0 Arial;}{\f1 Arial Bold;}}'
         r'{\colortbl ;\red0\green0\blue0;\red220\green20\blue60;\red50\green205\blue50;\red255\green140\blue0;}'
-        r'\pard\sa200\sl276\slmult1\f0\fs24 ' # Default paragraph, spacing, font, size
+        r'\pard\sa0\sl240\slmult1\f0\fs24 ' # Tighter paragraph settings (no space after, single line spacing)
     )
 
-    # Title
-    rtf += r'\qc\b\fs36 EB-1 Eligibility Assessment Report\par\par\b0\fs24 '
-    rtf += r'\qc\line\par\par\ql ' # Horizontal line
+    # 1. Title (Updated to "MK Law...")
+    rtf += r'\qc\b\fs36 MK Law EB-1 Eligibility Assessment Report\par\par\b0\fs24 '
+    rtf += r'\qc\line\par\ql ' # Horizontal line, less space
 
-    # 1. Assessment Result Section
+    # 2. Assessment Result Section
     rtf += r'\b\fs28 1. Assessment Result\par\par\b0\fs24 '
     
     # Status (using color)
@@ -545,27 +562,36 @@ def create_rtf_report(criteria_data, result, question_map):
     
     rtf += r'\par\line\par\ql ' # Horizontal line
 
-    # 2. User Input Criteria Section
+    # 3. User Input Criteria Section (With Sub-Headings)
     rtf += r'\b\fs28 2. User Selected Qualifications\par\par\b0\fs24 '
     
-    # Iterate through all questions for a complete report
-    for key, question in question_map.items():
-        answer = criteria_data.get(key)
+    for group_heading, keys in CRITERIA_GROUPS.items():
+        # Add Distinct Sub-heading
+        rtf += r'\par\b\fs26 ' + safe_rtf_escape(group_heading) + r'\b0\fs24\par'
         
-        # Format the answer for display
-        if key == 'experience':
-            display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
-        elif answer in [True, 'yes']:
-            display_answer = "YES (Met)"
-        elif answer in [False, 'no']:
-            display_answer = "NO (Not Met)"
-        else:
-            display_answer = str(answer)
+        # List criteria within the group
+        for key in keys:
+            if key in question_map: # Check if the key exists in the original map
+                question = question_map[key]
+                answer = criteria_data.get(key)
+                
+                # Format the answer for display
+                if key == 'experience':
+                    display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
+                elif answer in [True, 'yes']:
+                    display_answer = "YES (Met)"
+                elif answer in [False, 'no']:
+                    display_answer = "NO (Not Met)"
+                else:
+                    display_answer = str(answer)
+                
+                # Use bullet point and bold question
+                rtf += r'{\pntext\f0\'B7}\tab \b ' + safe_rtf_escape(question) + r':\b0 ' + safe_rtf_escape(display_answer) + r'\par'
         
-        rtf += r'\b ' + safe_rtf_escape(question) + r':\b0 ' + safe_rtf_escape(display_answer) + r'\par'
-    
+        rtf += r'\par' # Small gap between groups
+
     # Disclaimer
-    rtf += r'\par\line\par\ql ' # Horizontal line
+    rtf += r'\line\par\ql ' # Horizontal line
     rtf += r'\i\fs20 *DISCLAIMER: This is a preliminary screening tool only and does NOT constitute legal advice. Consult with a qualified immigration attorney for a comprehensive case evaluation.*\i0\fs24\par'
 
     rtf += r'}' # Close RTF document
@@ -727,12 +753,12 @@ def main():
             st.download_button(
                 label="📝 Download Report as Word-Compatible RTF",
                 data=rtf_report_content,
-                file_name="EB1_Eligibility_Report.rtf",
+                file_name="MK_Law_EB1_Eligibility_Report.rtf",
                 mime="application/rtf",
                 use_container_width=True,
                 type="secondary"
             )
-            st.caption("(*.rtf files open automatically in Microsoft Word, Google Docs, or Pages.)")
+            st.caption("(*.rtf files open automatically in Microsoft Word, Google Docs, or Pages and retain formatting.)")
 
 
 if __name__ == "__main__":
