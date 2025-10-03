@@ -37,7 +37,7 @@ CRITERIA_QUESTIONS = {
 }
 
 
-# --- CORE ELIGIBILITY LOGIC ---
+# --- CORE ELIGIBILITY LOGIC (FULL CODE) ---
 
 def check_eb1_eligibility(criteria_data):
     """
@@ -458,98 +458,6 @@ def check_eb1_eligibility(criteria_data):
 
 # --- REPORT GENERATION HELPERS ---
 
-def create_json_report(criteria_data, result):
-    """
-    Combines input criteria and assessment result into a structured Python dictionary
-    and returns it as a JSON string.
-    """
-    # Create a simplified criteria data for the report, using the question map for clarity
-    user_criteria = {}
-    # Use the full list of keys for the raw data report
-    for key, value in criteria_data.items():
-        question = CRITERIA_QUESTIONS.get(key, key)
-        
-        # Handle special formats for clarity
-        if key == 'experience':
-            display_value = "3+ years" if value == '3_years' else "Less than 3 years"
-        elif value in [True, 'yes']:
-            display_value = "Yes (✅)"
-        elif value in [False, 'no']:
-            display_value = "No (❌)"
-        else:
-            display_value = str(value)
-            
-        user_criteria[question] = display_value
-
-    # Strip emojis from the result fields for clean JSON output
-    report_data = {
-        "Assessment_Result": {
-            "Status": result.get('status').replace('✅', '').replace('🟡', '').replace('❌', '').strip(),
-            "Category": result.get('category').replace('🌟', '').replace('🔬', '').replace('🏢', '').strip(),
-            "Title": result.get('title'),
-            "Score": result.get('score'),
-            "Strength": result.get('strength'),
-            "Details": result.get('details'),
-            "Processing_Guidance": result.get('processing'),
-            "Recommended_Next_Steps": result.get('next_steps')
-        },
-        "User_Input_Criteria_Summary": user_criteria
-    }
-    # Use indent=4 for human-readable formatting in the JSON file
-    return json.dumps(report_data, indent=4)
-
-
-def create_markdown_report(criteria_data, result, question_map):
-    """
-    Generates a Markdown string (used for the readable Plain Text download).
-    """
-    report = "# EB-1 Eligibility Assessment Report\n\n"
-    report += "--- \n\n"
-    
-    # --- Assessment Result ---
-    report += f"## 1. Assessment Result\n\n"
-    report += f"**Status:** {result['status']}\n"
-    report += f"**Category:** {result['category']}\n"
-    report += f"**Title:** {result['title']}\n"
-    report += f"**Score:** {result['score']} | **Strength:** {result['strength']}\n\n"
-    
-    report += "**Assessment Details:**\n"
-    report += f"> {result['details']}\n\n"
-    
-    report += "**Processing Guidance:**\n"
-    report += f"*{result['processing']}*\n\n"
-
-    report += "**Recommended Next Steps:**\n"
-    for step in result['next_steps']:
-        report += f"* {step}\n"
-    
-    report += "\n---\n\n"
-
-    # --- User Input Criteria ---
-    report += "## 2. User Selected Qualifications\n\n"
-    
-    # Iterate through all questions for a complete report
-    for key, question in question_map.items():
-        answer = criteria_data.get(key)
-        
-        # Format the answer for display
-        if key == 'experience':
-            display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
-        elif answer in [True, 'yes']:
-            display_answer = "✅ YES"
-        elif answer in [False, 'no']:
-            display_answer = "❌ NO"
-        else:
-            display_answer = str(answer)
-        
-        report += f"* **{question}:** {display_answer}\n"
-    
-    report += "\n---\n\n"
-    report += "*DISCLAIMER: This is a preliminary screening tool only and does NOT constitute legal advice. Consult with a qualified immigration attorney for a comprehensive case evaluation.*"
-
-    return report
-
-
 def display_results(result):
     """Formats and displays the eligibility result in Streamlit."""
     
@@ -584,6 +492,85 @@ def display_results(result):
     st.divider()
     st.warning("**⚠️ IMPORTANT DISCLAIMER:** This is a preliminary screening tool only and does NOT constitute legal advice. EB-1 eligibility depends on the quality and strength of documentation, not just meeting criteria. Consult with a qualified immigration attorney for a comprehensive case evaluation and petition strategy.")
 
+# --- NEW RTF GENERATION FUNCTION ---
+def safe_rtf_escape(text):
+    """Escapes problematic characters for RTF."""
+    # Replace backslash first, then braces
+    text = str(text).replace('\\', '\\\\')
+    text = text.replace('{', '\\{').replace('}', '\\}')
+    return text
+
+def create_rtf_report(criteria_data, result, question_map):
+    """Generates a report in Rich Text Format (.rtf) for Word compatibility."""
+    
+    # RTF header and font definitions
+    rtf = (
+        r'{\rtf1\ansi\deff0'
+        r'{\fonttbl{\f0 Arial;}{\f1 Arial Bold;}}'
+        r'{\colortbl ;\red0\green0\blue0;\red220\green20\blue60;\red50\green205\blue50;\red255\green140\blue0;}'
+        r'\pard\sa200\sl276\slmult1\f0\fs24 ' # Default paragraph, spacing, font, size
+    )
+
+    # Title
+    rtf += r'\qc\b\fs36 EB-1 Eligibility Assessment Report\par\par\b0\fs24 '
+    rtf += r'\qc\line\par\par\ql ' # Horizontal line
+
+    # 1. Assessment Result Section
+    rtf += r'\b\fs28 1. Assessment Result\par\par\b0\fs24 '
+    
+    # Status (using color)
+    status = safe_rtf_escape(result['status']).strip()
+    color_map = {
+        'HIGHLY LIKELY': 3, 'EXCEPTIONAL': 3, 'VERY STRONG': 3, 'QUALIFIED': 3,
+        'NEEDS EXPERIENCE': 4, 'NEEDS JOB OFFER': 4, 'ONE CRITERION SHORT': 4, 'POTENTIAL': 4,
+        'WEAK PROFILE': 4, 'PARTIAL EB-1C': 4,
+        'NOT ELIGIBLE': 2
+    }
+    color_index = color_map.get(status.split()[-1].upper(), 1) # Default Black
+    
+    rtf += r'\b Status:\b0 \cf' + str(color_index) + r' ' + status + r'\cf1\par'
+    rtf += r'\b Category:\b0 ' + safe_rtf_escape(result['category']) + r'\par'
+    rtf += r'\b Title:\b0 ' + safe_rtf_escape(result['title']) + r'\par'
+    rtf += r'\b Score:\b0 ' + safe_rtf_escape(result['score']) + r' \b Strength:\b0 ' + safe_rtf_escape(result['strength']) + r'\par\par'
+    
+    rtf += r'\b Assessment Details:\b0 \par'
+    rtf += r'{\pntext\f0\'' + safe_rtf_escape(result['details']) + r'}\par\par'
+    
+    rtf += r'\b Processing Guidance:\b0 \par\i ' + safe_rtf_escape(result['processing']) + r'\i0\par\par'
+
+    rtf += r'\b Recommended Next Steps:\b0 \par'
+    # List of next steps
+    for step in result['next_steps']:
+        rtf += r'{\pntext\f0\'B7}\tab ' + safe_rtf_escape(step) + r'\par'
+    
+    rtf += r'\par\line\par\ql ' # Horizontal line
+
+    # 2. User Input Criteria Section
+    rtf += r'\b\fs28 2. User Selected Qualifications\par\par\b0\fs24 '
+    
+    # Iterate through all questions for a complete report
+    for key, question in question_map.items():
+        answer = criteria_data.get(key)
+        
+        # Format the answer for display
+        if key == 'experience':
+            display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
+        elif answer in [True, 'yes']:
+            display_answer = "YES (Met)"
+        elif answer in [False, 'no']:
+            display_answer = "NO (Not Met)"
+        else:
+            display_answer = str(answer)
+        
+        rtf += r'\b ' + safe_rtf_escape(question) + r':\b0 ' + safe_rtf_escape(display_answer) + r'\par'
+    
+    # Disclaimer
+    rtf += r'\par\line\par\ql ' # Horizontal line
+    rtf += r'\i\fs20 *DISCLAIMER: This is a preliminary screening tool only and does NOT constitute legal advice. Consult with a qualified immigration attorney for a comprehensive case evaluation.*\i0\fs24\par'
+
+    rtf += r'}' # Close RTF document
+    return rtf.encode('utf-8')
+
 
 # --- MAIN APPLICATION ---
 
@@ -592,7 +579,7 @@ def main():
 
     # Header and Layout
     st.title("US EB-1 Green Card Eligibility Screener")
-    st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories: Extraordinary Ability (EB-1A), Outstanding Researcher/Professor (EB-1B), and Multinational Manager/Executive (EB-1C).")
+    st.caption("A tool to evaluate potential eligibility for the **Employment-Based First Preference (EB-1)** Green Card across three subcategories.")
     st.divider()
     
     # Two-column layout for input and results
@@ -710,8 +697,6 @@ def main():
             
             # Create consolidated data for the core logic function
             criteria_data_calc = criteria_data.copy()
-            # Consolidate overlapping EB-1A and EB-1B criteria from UI checkboxes
-            # The logic function only checks the consolidated keys
             criteria_data_calc['lesser_awards'] = criteria_data.get('lesser_awards', False) or criteria_data.get('lesser_awards_b', False)
             criteria_data_calc['membership'] = criteria_data.get('membership', False) or criteria_data.get('membership_b', False)
             
@@ -725,7 +710,7 @@ def main():
         
         # Initial message
         if not st.session_state.get('run_screener', False):
-            st.info("Select your qualifications on the left and click **'Check Eligibility'** to receive a full assessment. This tool evaluates all 15 possible EB-1 outcomes.")
+            st.info("Select your qualifications on the left and click **'Check Eligibility'** to receive a full assessment.")
         
         # Display results and download buttons
         if st.session_state.get('run_screener', False) and st.session_state.get('result'):
@@ -736,26 +721,18 @@ def main():
             
             st.subheader("Download Full Report ⬇️")
             
-            # --- Primary Download: Structured JSON (Most User-Friendly for Data) ---
-            json_report = create_json_report(st.session_state['criteria_data_raw'], result)
+            # --- Primary Download: Rich Text Format (.rtf) ---
+            rtf_report_content = create_rtf_report(st.session_state['criteria_data_raw'], result, CRITERIA_QUESTIONS)
+            
             st.download_button(
-                label="📁 Download as Structured JSON (.json)",
-                data=json_report,
-                file_name="EB1_Eligibility_Report.json",
-                mime="application/json",
+                label="📝 Download Report as Word-Compatible RTF",
+                data=rtf_report_content,
+                file_name="EB1_Eligibility_Report.rtf",
+                mime="application/rtf",
                 use_container_width=True,
                 type="secondary"
             )
-            
-            # --- Secondary Download: Readable Plain Text ---
-            markdown_report = create_markdown_report(st.session_state['criteria_data_raw'], result, CRITERIA_QUESTIONS)
-            st.download_button(
-                label="📄 Download as Readable Plain Text (.txt)",
-                data=markdown_report, 
-                file_name="EB1_Eligibility_Report.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
+            st.caption("(*.rtf files open automatically in Microsoft Word, Google Docs, or Pages.)")
 
 
 if __name__ == "__main__":
