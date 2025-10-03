@@ -1,7 +1,43 @@
 import streamlit as st
+import json
 from collections import defaultdict
 
-# --- Core Eligibility Logic Functions (Unchanged) ---
+# --- CRITERIA MAPPING ---
+
+# Dictionary mapping criteria keys to descriptive question text
+CRITERIA_QUESTIONS = {
+    # EB-1A
+    'major_award': "Major internationally recognized award (Nobel, Oscar, etc.)",
+    'lesser_awards': "Lesser nationally/internationally recognized awards (EB-1A)",
+    'membership': "Membership requiring outstanding achievements (EB-1A)",
+    'publications': "Published material about you in major media",
+    'judging': "Judged work of others (peer reviewer, panelist)",
+    'original_contributions': "Original contributions of major significance",
+    'authorship': "Authorship of scholarly articles",
+    'performances': "Work displayed at exhibitions/showcases",
+    'high_salary': "High salary or significantly high remuneration",
+    'commercial_success': "Commercial success in performing arts",
+    
+    # EB-1B Requirements
+    'experience': "Research/teaching experience",
+    'offer': "Permanent US job offer",
+    'tenure': "Tenured/permanent position",
+    
+    # EB-1B Criteria (keys used specifically for UI)
+    'published_articles': "Published articles in international academic journals",
+    'judging_research': "Judged research of others (peer review, grant panels)",
+    'original_contributions_research': "Original research contributions of major significance to field",
+    'lesser_awards_b': "Lesser recognized awards (EB-1B specific UI key)",
+    'membership_b': "Membership requiring outstanding achievements (EB-1B specific UI key)",
+
+    # EB-1C
+    'one_year_exp': "Managerial/executive role abroad (1+ year)",
+    'transfer': "Transferring to US affiliate/parent/subsidiary",
+    'managerial_role': "US role is also managerial/executive",
+}
+
+
+# --- CORE ELIGIBILITY LOGIC ---
 
 def check_eb1_eligibility(criteria_data):
     """
@@ -12,7 +48,7 @@ def check_eb1_eligibility(criteria_data):
     """
     
     # === EB-1A ASSESSMENT ===
-    if criteria_data['major_award']:
+    if criteria_data.get('major_award'):
         return {
             'category': 'EB-1A',
             'status': '✅ HIGHLY LIKELY',
@@ -32,41 +68,42 @@ def check_eb1_eligibility(criteria_data):
             'processing': 'Self-petition possible. Very high approval rate.'
         }
     
-    # Count EB-1A criteria
+    # Count EB-1A criteria (uses consolidated keys: 'lesser_awards', 'membership')
     eb1a_criteria_met = sum([
-        criteria_data['lesser_awards'],
-        criteria_data['membership'],
-        criteria_data['publications'],
-        criteria_data['judging'],
-        criteria_data['original_contributions'],
-        criteria_data['authorship'],
-        criteria_data['performances'],
-        criteria_data['high_salary'],
-        criteria_data['commercial_success']
+        criteria_data.get('lesser_awards', False),
+        criteria_data.get('membership', False),
+        criteria_data.get('publications', False),
+        criteria_data.get('judging', False),
+        criteria_data.get('original_contributions', False),
+        criteria_data.get('authorship', False),
+        criteria_data.get('performances', False),
+        criteria_data.get('high_salary', False),
+        criteria_data.get('commercial_success', False)
     ])
    
     # === EB-1B ASSESSMENT ===
+    # Count EB-1B criteria (uses consolidated keys: 'lesser_awards', 'membership')
     eb1b_criteria_met = sum([
-        criteria_data['published_articles'],
-        criteria_data['judging_research'],
-        criteria_data['original_contributions_research'],
-        criteria_data['tenure'] == 'yes',
-        criteria_data['lesser_awards'],
-        criteria_data['membership']
+        criteria_data.get('published_articles', False),
+        criteria_data.get('judging_research', False),
+        criteria_data.get('original_contributions_research', False),
+        criteria_data.get('tenure') == 'yes',
+        criteria_data.get('lesser_awards', False),
+        criteria_data.get('membership', False)
     ])
     
     has_eb1b_basics = (
-        criteria_data['experience'] == '3_years' and
-        criteria_data['offer'] == 'yes'
+        criteria_data.get('experience') == '3_years' and
+        criteria_data.get('offer') == 'yes'
     )
     
     eb1b_eligible = has_eb1b_basics and eb1b_criteria_met >= 2
     
     # === EB-1C ASSESSMENT ===
     eb1c_eligible = (
-        criteria_data['managerial_role'] == 'yes' and
-        criteria_data['one_year_exp'] == 'yes' and
-        criteria_data['transfer'] == 'yes'
+        criteria_data.get('managerial_role') == 'yes' and
+        criteria_data.get('one_year_exp') == 'yes' and
+        criteria_data.get('transfer') == 'yes'
     )
     
     # === ALL POSSIBLE OUTCOMES (15 Scenarios - Prioritized by Strength) ===
@@ -226,7 +263,7 @@ def check_eb1_eligibility(criteria_data):
         }
     
     # OUTCOME 8: EB-1B Missing Experience
-    if eb1b_criteria_met >= 2 and criteria_data['offer'] == 'yes' and criteria_data['experience'] != '3_years':
+    if eb1b_criteria_met >= 2 and criteria_data.get('offer') == 'yes' and criteria_data.get('experience') != '3_years':
         return {
             'category': 'EB-1B',
             'status': '🟡 NEEDS EXPERIENCE',
@@ -248,7 +285,7 @@ def check_eb1_eligibility(criteria_data):
         }
     
     # OUTCOME 9: EB-1B Missing Job Offer
-    if eb1b_criteria_met >= 2 and criteria_data['experience'] == '3_years' and criteria_data['offer'] != 'yes':
+    if eb1b_criteria_met >= 2 and criteria_data.get('experience') == '3_years' and criteria_data.get('offer') != 'yes':
         return {
             'category': 'EB-1B',
             'status': '🟡 NEEDS JOB OFFER',
@@ -373,7 +410,7 @@ def check_eb1_eligibility(criteria_data):
     
     # OUTCOME 14: EB-1C Only (no EB-1A/B potential)
     # Check if any EB-1C-related variable is 'yes'
-    eb1c_partial = any(criteria_data[k] == 'yes' for k in ['managerial_role', 'one_year_exp', 'transfer'])
+    eb1c_partial = any(criteria_data.get(k) == 'yes' for k in ['managerial_role', 'one_year_exp', 'transfer'])
     
     if eb1a_criteria_met == 0 and eb1b_criteria_met == 0 and eb1c_partial and not eb1c_eligible:
         return {
@@ -404,60 +441,67 @@ def check_eb1_eligibility(criteria_data):
         'color': '#DC143C', # Crimson
         'title': 'Not Qualified for EB-1 - Consider Alternative Categories',
         'details': 'Your current profile does not meet EB-1 requirements in any subcategory. EB-1 is the most selective employment-based category, reserved for those with extraordinary ability, outstanding research credentials, or multinational executive experience.',
-        'next_steps': [
-            'EB-1 is not appropriate at this career stage',
-            'Focus on EB-2 NIW (National Interest Waiver) pathway',
-            'EB-2 requires advanced degree + exceptional ability',
-            'EB-3 is available for skilled workers and professionals',
-            'Build career achievements for future EB-1 consideration',
-            'Develop publication record and professional recognition',
-            'Join professional organizations and seek leadership roles',
-            'Consult attorney for EB-2/EB-3 evaluation',
-            'Revisit EB-1 after 3-5 years of achievement building'
-        ],
+            'next_steps': [
+                'EB-1 is not appropriate at this career stage',
+                'Focus on EB-2 NIW (National Interest Waiver) pathway',
+                'EB-2 requires advanced degree + exceptional ability',
+                'EB-3 is available for skilled workers and professionals',
+                'Build career achievements for future EB-1 consideration',
+                'Develop publication record and professional recognition',
+                'Join professional organizations and seek leadership roles',
+                'Consult attorney for EB-2/EB-3 evaluation',
+                'Revisit EB-1 after 3-5 years of achievement building'
+            ],
         'strength': 'NOT ELIGIBLE',
         'processing': 'EB-1 not viable. Pursue EB-2 or EB-3 categories.'
     }
 
+# --- REPORT GENERATION HELPERS ---
 
-# --- New Markdown Generation Logic ---
+def create_json_report(criteria_data, result):
+    """
+    Combines input criteria and assessment result into a structured Python dictionary
+    and returns it as a JSON string.
+    """
+    # Create a simplified criteria data for the report, using the question map for clarity
+    user_criteria = {}
+    # Use the full list of keys for the raw data report
+    for key, value in criteria_data.items():
+        question = CRITERIA_QUESTIONS.get(key, key)
+        
+        # Handle special formats for clarity
+        if key == 'experience':
+            display_value = "3+ years" if value == '3_years' else "Less than 3 years"
+        elif value in [True, 'yes']:
+            display_value = "Yes (✅)"
+        elif value in [False, 'no']:
+            display_value = "No (❌)"
+        else:
+            display_value = str(value)
+            
+        user_criteria[question] = display_value
 
-# Dictionary mapping criteria keys to descriptive question text
-CRITERIA_QUESTIONS = {
-    # EB-1A
-    'major_award': "Major internationally recognized award (Nobel, Oscar, etc.)",
-    'lesser_awards': "Lesser nationally/internationally recognized awards",
-    'membership': "Membership requiring outstanding achievements",
-    'publications': "Published material about you in major media",
-    'judging': "Judged work of others (peer reviewer, panelist)",
-    'original_contributions': "Original contributions of major significance",
-    'authorship': "Authorship of scholarly articles",
-    'performances': "Work displayed at exhibitions/showcases",
-    'high_salary': "High salary or significantly high remuneration",
-    'commercial_success': "Commercial success in performing arts",
-    
-    # EB-1B Requirements
-    'experience': "Research/teaching experience",
-    'offer': "Permanent US job offer",
-    'tenure': "Tenured/permanent position",
-    
-    # EB-1B Criteria
-    'published_articles': "Published articles in international academic journals",
-    'judging_research': "Judged research of others (peer review, grant panels)",
-    'original_contributions_research': "Original research contributions of major significance to field",
-    # Using 'lesser_awards_b' and 'membership_b' for clarity on source, though they map to the same question for the user
-    'lesser_awards_b': "Lesser recognized awards (EB-1B specific)",
-    'membership_b': "Membership requiring outstanding achievements (EB-1B specific)",
+    # Strip emojis from the result fields for clean JSON output
+    report_data = {
+        "Assessment_Result": {
+            "Status": result.get('status').replace('✅', '').replace('🟡', '').replace('❌', '').strip(),
+            "Category": result.get('category').replace('🌟', '').replace('🔬', '').replace('🏢', '').strip(),
+            "Title": result.get('title'),
+            "Score": result.get('score'),
+            "Strength": result.get('strength'),
+            "Details": result.get('details'),
+            "Processing_Guidance": result.get('processing'),
+            "Recommended_Next_Steps": result.get('next_steps')
+        },
+        "User_Input_Criteria_Summary": user_criteria
+    }
+    # Use indent=4 for human-readable formatting in the JSON file
+    return json.dumps(report_data, indent=4)
 
-    # EB-1C
-    'one_year_exp': "Managerial/executive role abroad (1+ year)",
-    'transfer': "Transferring to US affiliate/parent/subsidiary",
-    'managerial_role': "US role is also managerial/executive",
-}
 
 def create_markdown_report(criteria_data, result, question_map):
     """
-    Generates a Markdown string containing all input criteria and the assessment result.
+    Generates a Markdown string (used for the readable Plain Text download).
     """
     report = "# EB-1 Eligibility Assessment Report\n\n"
     report += "--- \n\n"
@@ -474,7 +518,7 @@ def create_markdown_report(criteria_data, result, question_map):
     
     report += "**Processing Guidance:**\n"
     report += f"*{result['processing']}*\n\n"
-    
+
     report += "**Recommended Next Steps:**\n"
     for step in result['next_steps']:
         report += f"* {step}\n"
@@ -484,65 +528,21 @@ def create_markdown_report(criteria_data, result, question_map):
     # --- User Input Criteria ---
     report += "## 2. User Selected Qualifications\n\n"
     
-    # Print all criteria and the user's answer
-    
-    # EB-1A Section
-    report += "### EB-1A: Extraordinary Ability (3/10 required)\n"
-    
-    # EB-1A Major Award (only check the main key)
-    key = 'major_award'
-    answer = criteria_data.get(key)
-    display_answer = "✅ YES" if answer is True else "❌ NO"
-    report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
-    
-    # EB-1A 10 Criteria
-    report += "\n**10 EB-1A Criteria:**\n"
-    eb1a_keys = ['lesser_awards', 'membership', 'publications', 'judging', 'original_contributions', 'authorship', 'performances', 'high_salary', 'commercial_success']
-    
-    for key in eb1a_keys:
-        # NOTE: The criteria_data entry for 'lesser_awards' and 'membership' should be the consolidated value from the main function.
-        # However, to be safe and clear, we use the specific keys set in the UI for EB-1A.
+    # Iterate through all questions for a complete report
+    for key, question in question_map.items():
         answer = criteria_data.get(key)
-        display_answer = "✅ YES" if answer is True else "❌ NO"
-        report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
-
-    # EB-1B Section
-    report += "\n### EB-1B: Outstanding Researcher/Professor (2/6 criteria + 3 requirements)\n"
-    
-    # EB-1B Requirements
-    report += "\n**Core Requirements:**\n"
-    
-    # Experience Key (special formatting for value)
-    key = 'experience'
-    answer = criteria_data.get(key)
-    display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
-    report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
-
-    # Offer and Tenure Keys
-    eb1b_req_keys = ['offer', 'tenure']
-    for key in eb1b_req_keys:
-        answer = criteria_data.get(key)
-        display_answer = "✅ YES" if answer == 'yes' else "❌ NO"
-        report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
-
-    # EB-1B Criteria
-    report += "\n**6 EB-1B Criteria:**\n"
-    eb1b_crit_keys = ['published_articles', 'judging_research', 'original_contributions_research', 'lesser_awards_b', 'membership_b']
-    
-    for key in eb1b_crit_keys:
-        answer = criteria_data.get(key)
-        display_answer = "✅ YES" if answer is True else "❌ NO"
-        report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
-
-
-    # EB-1C Section
-    report += "\n### EB-1C: Multinational Manager/Executive (3/3 required)\n"
-    
-    eb1c_keys = ['one_year_exp', 'transfer', 'managerial_role']
-    for key in eb1c_keys:
-        answer = criteria_data.get(key)
-        display_answer = "✅ YES" if answer == 'yes' else "❌ NO"
-        report += f"* **{question_map.get(key, key)}:** {display_answer}\n"
+        
+        # Format the answer for display
+        if key == 'experience':
+            display_answer = "3+ years" if answer == '3_years' else "Less than 3 years"
+        elif answer in [True, 'yes']:
+            display_answer = "✅ YES"
+        elif answer in [False, 'no']:
+            display_answer = "❌ NO"
+        else:
+            display_answer = str(answer)
+        
+        report += f"* **{question}:** {display_answer}\n"
     
     report += "\n---\n\n"
     report += "*DISCLAIMER: This is a preliminary screening tool only and does NOT constitute legal advice. Consult with a qualified immigration attorney for a comprehensive case evaluation.*"
@@ -550,10 +550,7 @@ def create_markdown_report(criteria_data, result, question_map):
     return report
 
 
-# --- Streamlit UI Application (Modified) ---
-
 def display_results(result):
-    # ... (Keep this function exactly as it was, it handles the visual display)
     """Formats and displays the eligibility result in Streamlit."""
     
     # Use HTML/Markdown for rich formatting based on result properties
@@ -588,6 +585,8 @@ def display_results(result):
     st.warning("**⚠️ IMPORTANT DISCLAIMER:** This is a preliminary screening tool only and does NOT constitute legal advice. EB-1 eligibility depends on the quality and strength of documentation, not just meeting criteria. Consult with a qualified immigration attorney for a comprehensive case evaluation and petition strategy.")
 
 
+# --- MAIN APPLICATION ---
+
 def main():
     st.set_page_config(layout="wide", page_title="EB-1 Green Card Eligibility Screener")
 
@@ -599,13 +598,19 @@ def main():
     # Two-column layout for input and results
     input_col, result_col = st.columns([1, 1])
 
+    # Initialize session state for consistent data storage
+    if 'run_screener' not in st.session_state:
+        st.session_state['run_screener'] = False
+        st.session_state['criteria_data_raw'] = defaultdict(lambda: False)
+        st.session_state['result'] = {}
+
     with input_col:
         st.subheader("1. Select Your Qualifications")
         
-        # --- Collect Criteria Data ---
+        # Use a fresh defaultdict for the input collection each run
         criteria_data = defaultdict(lambda: False)
 
-        # --- EB-1A Section (UI Inputs, unchanged) ---
+        # --- EB-1A Section ---
         with st.expander("🌟 EB-1A: Extraordinary Ability (Need 3 of 10 Criteria)", expanded=False):
             st.divider()
             st.markdown(
@@ -634,7 +639,7 @@ def main():
                 criteria_data['high_salary'] = st.checkbox("High salary or significantly high remuneration", key='high_salary')
                 criteria_data['commercial_success'] = st.checkbox("Commercial success in performing arts", key='commercial_success')
 
-        # --- EB-1B Section (UI Inputs, unchanged) ---
+        # --- EB-1B Section ---
         with st.expander("🔬 EB-1B: Outstanding Researcher/Professor (Need 2 of 6 + Requirements)", expanded=False):
             st.markdown("**Core Requirements:**")
             
@@ -671,7 +676,7 @@ def main():
             criteria_data['membership_b'] = st.checkbox("Membership requiring outstanding achievements (EB-1B specific)", key='membership_b')
 
 
-        # --- EB-1C Section (UI Inputs, unchanged) ---
+        # --- EB-1C Section ---
         with st.expander("🏢 EB-1C: Multinational Manager/Executive", expanded=False):
             st.markdown("**All three of the following requirements must be met:**")
             
@@ -700,15 +705,17 @@ def main():
 
         
         if st.button("Check Eligibility", use_container_width=True, type='primary'):
-            # Store the data in session state before calculation
-            # IMPORTANT: Consolidate before storing for calculation consistency
-            st.session_state['criteria_data_raw'] = criteria_data # Store raw for report
+            # Store the raw UI data for the report
+            st.session_state['criteria_data_raw'] = criteria_data.copy()
             
-            # Create consolidated data for calculation
+            # Create consolidated data for the core logic function
             criteria_data_calc = criteria_data.copy()
+            # Consolidate overlapping EB-1A and EB-1B criteria from UI checkboxes
+            # The logic function only checks the consolidated keys
             criteria_data_calc['lesser_awards'] = criteria_data.get('lesser_awards', False) or criteria_data.get('lesser_awards_b', False)
             criteria_data_calc['membership'] = criteria_data.get('membership', False) or criteria_data.get('membership_b', False)
             
+            # Run the core logic
             st.session_state['result'] = check_eb1_eligibility(criteria_data_calc)
             st.session_state['run_screener'] = True
         
@@ -717,28 +724,36 @@ def main():
         st.divider()
         
         # Initial message
-        if 'run_screener' not in st.session_state:
+        if not st.session_state.get('run_screener', False):
             st.info("Select your qualifications on the left and click **'Check Eligibility'** to receive a full assessment. This tool evaluates all 15 possible EB-1 outcomes.")
         
-        # Run the screener and display results
-        if st.session_state.get('run_screener', False) and 'result' in st.session_state:
+        # Display results and download buttons
+        if st.session_state.get('run_screener', False) and st.session_state.get('result'):
             result = st.session_state['result']
             display_results(result)
             
             st.divider()
             
-            # --- Markdown Download Button Logic ---
-            st.subheader("Download Full Report")
+            st.subheader("Download Full Report ⬇️")
             
-            # 1. Generate the Markdown file data
-            markdown_report = create_markdown_report(st.session_state['criteria_data_raw'], result, CRITERIA_QUESTIONS)
-            
-            # 2. Provide the download button
+            # --- Primary Download: Structured JSON (Most User-Friendly for Data) ---
+            json_report = create_json_report(st.session_state['criteria_data_raw'], result)
             st.download_button(
-                label="📥 Download Assessment as Markdown (.md)",
-                data=markdown_report,
-                file_name="EB1_Eligibility_Report.md",
-                mime="text/markdown",
+                label="📁 Download as Structured JSON (.json)",
+                data=json_report,
+                file_name="EB1_Eligibility_Report.json",
+                mime="application/json",
+                use_container_width=True,
+                type="secondary"
+            )
+            
+            # --- Secondary Download: Readable Plain Text ---
+            markdown_report = create_markdown_report(st.session_state['criteria_data_raw'], result, CRITERIA_QUESTIONS)
+            st.download_button(
+                label="📄 Download as Readable Plain Text (.txt)",
+                data=markdown_report, 
+                file_name="EB1_Eligibility_Report.txt",
+                mime="text/plain",
                 use_container_width=True
             )
 
